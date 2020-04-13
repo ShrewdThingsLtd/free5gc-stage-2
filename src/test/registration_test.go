@@ -2,7 +2,6 @@ package test_test
 
 import (
 	"encoding/hex"
-	"github.com/mohae/deepcopy"
 	"free5gc/lib/CommonConsumerTestData/UDM/TestGenAuthData"
 	"free5gc/lib/CommonConsumerTestData/UDR/TestRegistrationProcedure"
 	"free5gc/lib/nas/nasMessage"
@@ -10,6 +9,10 @@ import (
 	"free5gc/lib/nas/nasType"
 	"free5gc/lib/ngap"
 	"free5gc/lib/openapi/models"
+	"os"
+	"strconv"
+
+	"github.com/mohae/deepcopy"
 
 	// "free5gc/src/ausf/ausf_context"
 	"free5gc/src/test"
@@ -26,7 +29,76 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-const ranIpAddr string = "10.200.200.1"
+//const ranIpAddr string = "10.200.200.1"
+
+type TestEnv struct {
+	amfIpAddr string
+	ranIpAddr string
+	enbIpAddr string
+	upfIpAddr string
+	amfPort   int
+	ranPort   int
+	gnbPort   int
+	upfPort   int
+}
+
+var testEnv = TestEnv{
+	"127.0.0.1",
+	"10.200.200.1",
+	"10.200.200.2",
+	"10.200.200.102",
+	38412,
+	9487,
+	2152,
+	2152,
+}
+
+func fetchEnv() {
+	amfIpAddr, ok := os.LookupEnv("FREE5GC_AMF_IP")
+	if ok {
+		testEnv.amfIpAddr = amfIpAddr
+	}
+	ranIpAddr, ok := os.LookupEnv("FREE5GC_RAN_IP")
+	if ok {
+		testEnv.ranIpAddr = ranIpAddr
+	}
+	enbIpAddr, ok := os.LookupEnv("FREE5GC_ENB_IP")
+	if ok {
+		testEnv.enbIpAddr = enbIpAddr
+	}
+	upfIpAddr, ok := os.LookupEnv("FREE5GC_UPF_IP")
+	if ok {
+		testEnv.upfIpAddr = upfIpAddr
+	}
+	amfPortStr, ok := os.LookupEnv("FREE5GC_AMF_PORT")
+	if ok {
+		amfPort, err := strconv.Atoi(amfPortStr)
+		if err == nil {
+			testEnv.amfPort = amfPort
+		}
+	}
+	ranPortStr, ok := os.LookupEnv("FREE5GC_RAN_PORT")
+	if ok {
+		ranPort, err := strconv.Atoi(ranPortStr)
+		if err == nil {
+			testEnv.ranPort = ranPort
+		}
+	}
+	gnbPortStr, ok := os.LookupEnv("FREE5GC_GNB_PORT")
+	if ok {
+		gnbPort, err := strconv.Atoi(gnbPortStr)
+		if err == nil {
+			testEnv.gnbPort = gnbPort
+		}
+	}
+	upfPortStr, ok := os.LookupEnv("FREE5GC_UPF_PORT")
+	if ok {
+		upfPort, err := strconv.Atoi(upfPortStr)
+		if err == nil {
+			testEnv.upfPort = upfPort
+		}
+	}
+}
 
 func getAuthSubscription() (authSubs models.AuthenticationSubscription) {
 	authSubs.PermanentKey = &models.PermanentKey{
@@ -60,13 +132,14 @@ func TestRegistration(t *testing.T) {
 	var n int
 	var sendMsg []byte
 	var recvMsg = make([]byte, 2048)
+	fetchEnv()
 
 	// RAN connect to AMF
-	conn, err := conntectToAmf("127.0.0.1", "127.0.0.1", 38412, 9487)
+	conn, err := conntectToAmf(testEnv.amfIpAddr, testEnv.ranIpAddr, testEnv.amfPort, testEnv.ranPort)
 	assert.Nil(t, err)
 
 	// RAN connect to UPF
-	upfConn, err := connectToUpf(ranIpAddr, "10.200.200.102", 2152, 2152)
+	upfConn, err := connectToUpf(testEnv.enbIpAddr, testEnv.upfIpAddr, testEnv.gnbPort, testEnv.upfPort)
 	assert.Nil(t, err)
 
 	// send NGSetupRequest Msg
@@ -193,7 +266,7 @@ func TestRegistration(t *testing.T) {
 	assert.Nil(t, err)
 
 	// send 14. NGAP-PDU Session Resource Setup Response
-	sendMsg, err = test.GetPDUSessionResourceSetupResponse(ue.AmfUeNgapId, ue.RanUeNgapId, ranIpAddr)
+	sendMsg, err = test.GetPDUSessionResourceSetupResponse(ue.AmfUeNgapId, ue.RanUeNgapId, testEnv.ranIpAddr)
 	assert.Nil(t, err)
 	_, err = conn.Write(sendMsg)
 	assert.Nil(t, err)
@@ -254,9 +327,10 @@ func TestDeregistration(t *testing.T) {
 	var n int
 	var sendMsg []byte
 	var recvMsg = make([]byte, 2048)
+	fetchEnv()
 
 	// RAN connect to AMF
-	conn, err := conntectToAmf("127.0.0.1", "127.0.0.1", 38412, 9487)
+	conn, err := conntectToAmf(testEnv.amfIpAddr, testEnv.ranIpAddr, testEnv.amfPort, testEnv.ranPort)
 	assert.Nil(t, err)
 
 	// send NGSetupRequest Msg
@@ -405,9 +479,10 @@ func TestServiceRequest(t *testing.T) {
 	var n int
 	var sendMsg []byte
 	var recvMsg = make([]byte, 2048)
+	fetchEnv()
 
 	// RAN connect to AMF
-	conn, err := conntectToAmf("127.0.0.1", "127.0.0.1", 38412, 9487)
+	conn, err := conntectToAmf(testEnv.amfIpAddr, testEnv.ranIpAddr, testEnv.amfPort, testEnv.ranPort)
 	assert.Nil(t, err)
 
 	// send NGSetupRequest Msg
@@ -532,7 +607,7 @@ func TestServiceRequest(t *testing.T) {
 	assert.Nil(t, err)
 
 	// send 14. NGAP-PDU Session Resource Setup Response
-	sendMsg, err = test.GetPDUSessionResourceSetupResponse(ue.AmfUeNgapId, ue.RanUeNgapId, ranIpAddr)
+	sendMsg, err = test.GetPDUSessionResourceSetupResponse(ue.AmfUeNgapId, ue.RanUeNgapId, testEnv.ranIpAddr)
 	assert.Nil(t, err)
 	_, err = conn.Write(sendMsg)
 	assert.Nil(t, err)
@@ -576,7 +651,7 @@ func TestServiceRequest(t *testing.T) {
 	assert.Nil(t, err)
 
 	// Send Initial Context Setup Response
-	sendMsg, err = test.GetInitialContextSetupResponseForServiceRequest(ue.AmfUeNgapId, ue.RanUeNgapId, ranIpAddr)
+	sendMsg, err = test.GetInitialContextSetupResponseForServiceRequest(ue.AmfUeNgapId, ue.RanUeNgapId, testEnv.ranIpAddr)
 	assert.Nil(t, err)
 	_, err = conn.Write(sendMsg)
 	assert.Nil(t, err)
@@ -597,9 +672,10 @@ func TestPDUSessionReleaseRequest(t *testing.T) {
 	var n int
 	var sendMsg []byte
 	var recvMsg = make([]byte, 2048)
+	fetchEnv()
 
 	// RAN connect to AMF
-	conn, err := conntectToAmf("127.0.0.1", "127.0.0.1", 38412, 9487)
+	conn, err := conntectToAmf(testEnv.amfIpAddr, testEnv.ranIpAddr, testEnv.amfPort, testEnv.ranPort)
 	assert.Nil(t, err)
 
 	// send NGSetupRequest Msg
@@ -724,7 +800,7 @@ func TestPDUSessionReleaseRequest(t *testing.T) {
 	assert.Nil(t, err)
 
 	// send 14. NGAP-PDU Session Resource Setup Response
-	sendMsg, err = test.GetPDUSessionResourceSetupResponse(ue.AmfUeNgapId, ue.RanUeNgapId, ranIpAddr)
+	sendMsg, err = test.GetPDUSessionResourceSetupResponse(ue.AmfUeNgapId, ue.RanUeNgapId, testEnv.ranIpAddr)
 	assert.Nil(t, err)
 	_, err = conn.Write(sendMsg)
 	assert.Nil(t, err)
@@ -775,9 +851,10 @@ func TestXnHandover(t *testing.T) {
 	var n int
 	var sendMsg []byte
 	var recvMsg = make([]byte, 2048)
+	fetchEnv()
 
 	// RAN connect to AMF
-	conn, err := conntectToAmf("127.0.0.1", "127.0.0.1", 38412, 9487)
+	conn, err := conntectToAmf(testEnv.amfIpAddr, testEnv.ranIpAddr, testEnv.amfPort, testEnv.ranPort)
 	assert.Nil(t, err)
 
 	// send NGSetupRequest Msg
@@ -919,7 +996,7 @@ func TestXnHandover(t *testing.T) {
 	assert.Nil(t, err)
 
 	// send 14. NGAP-PDU Session Resource Setup Response
-	sendMsg, err = test.GetPDUSessionResourceSetupResponse(ue.AmfUeNgapId, ue.RanUeNgapId, ranIpAddr)
+	sendMsg, err = test.GetPDUSessionResourceSetupResponse(ue.AmfUeNgapId, ue.RanUeNgapId, testEnv.ranIpAddr)
 	assert.Nil(t, err)
 	_, err = conn.Write(sendMsg)
 	assert.Nil(t, err)
@@ -954,9 +1031,10 @@ func TestPaging(t *testing.T) {
 	var n int
 	var sendMsg []byte
 	var recvMsg = make([]byte, 2048)
+	fetchEnv()
 
 	// RAN connect to AMFcd
-	conn, err := conntectToAmf("127.0.0.1", "127.0.0.1", 38412, 9487)
+	conn, err := conntectToAmf(testEnv.amfIpAddr, testEnv.ranIpAddr, testEnv.amfPort, testEnv.ranPort)
 	assert.Nil(t, err)
 
 	// send NGSetupRequest Msg
@@ -1080,7 +1158,7 @@ func TestPaging(t *testing.T) {
 	assert.Nil(t, err)
 
 	// send 14. NGAP-PDU Session Resource Setup Response
-	sendMsg, err = test.GetPDUSessionResourceSetupResponse(ue.AmfUeNgapId, ue.RanUeNgapId, ranIpAddr)
+	sendMsg, err = test.GetPDUSessionResourceSetupResponse(ue.AmfUeNgapId, ue.RanUeNgapId, testEnv.ranIpAddr)
 	assert.Nil(t, err)
 	_, err = conn.Write(sendMsg)
 	assert.Nil(t, err)
@@ -1111,7 +1189,7 @@ func TestPaging(t *testing.T) {
 	// send downlink data
 	go func() {
 		// RAN connect to UPF
-		upfConn, err := connectToUpf(ranIpAddr, "10.200.200.102", 2152, 2152)
+		upfConn, err := connectToUpf(testEnv.ranIpAddr, testEnv.upfIpAddr, testEnv.gnbPort, testEnv.upfPort)
 		assert.Nil(t, err)
 		_, _ = upfConn.Read(recvMsg)
 		// fmt.Println(string(recvMsg))
@@ -1148,7 +1226,7 @@ func TestPaging(t *testing.T) {
 	assert.Nil(t, err)
 
 	//send Initial Context Setup Response
-	sendMsg, err = test.GetInitialContextSetupResponseForServiceRequest(ue.AmfUeNgapId, ue.RanUeNgapId, ranIpAddr)
+	sendMsg, err = test.GetInitialContextSetupResponseForServiceRequest(ue.AmfUeNgapId, ue.RanUeNgapId, testEnv.ranIpAddr)
 	assert.Nil(t, err)
 	_, err = conn.Write(sendMsg)
 	assert.Nil(t, err)
@@ -1168,13 +1246,14 @@ func TestN2Handover(t *testing.T) {
 	var n int
 	var sendMsg []byte
 	var recvMsg = make([]byte, 2048)
+	fetchEnv()
 
 	// RAN1 connect to AMF
-	conn, err := conntectToAmf("127.0.0.1", "127.0.0.1", 38412, 9487)
+	conn, err := conntectToAmf(testEnv.amfIpAddr, testEnv.ranIpAddr, testEnv.amfPort, testEnv.ranPort)
 	assert.Nil(t, err)
 
 	// RAN1 connect to UPF
-	upfConn, err := connectToUpf(ranIpAddr, "10.200.200.102", 2152, 2152)
+	upfConn, err := connectToUpf(testEnv.ranIpAddr, testEnv.upfIpAddr, testEnv.gnbPort, testEnv.upfPort)
 	assert.Nil(t, err)
 
 	// RAN1 send NGSetupRequest Msg
@@ -1192,11 +1271,11 @@ func TestN2Handover(t *testing.T) {
 	time.Sleep(10 * time.Millisecond)
 
 	// RAN2 connect to AMF
-	conn2, err1 := conntectToAmf("127.0.0.1", "127.0.0.1", 38412, 9488)
+	conn2, err1 := conntectToAmf(testEnv.amfIpAddr, testEnv.ranIpAddr, testEnv.amfPort, (testEnv.ranPort + 1))
 	assert.Nil(t, err1)
 
 	// RAN2 connect to UPF
-	upfConn2, err := connectToUpf("10.200.200.2", "10.200.200.102", 2152, 2152)
+	upfConn2, err := connectToUpf(testEnv.enbIpAddr, testEnv.upfIpAddr, (testEnv.gnbPort + 1), testEnv.upfPort)
 	assert.Nil(t, err)
 
 	// RAN2 send Second NGSetupRequest Msg
@@ -1320,7 +1399,7 @@ func TestN2Handover(t *testing.T) {
 	assert.Nil(t, err)
 
 	// send 14. NGAP-PDU Session Resource Setup Response
-	sendMsg, err = test.GetPDUSessionResourceSetupResponse(ue.AmfUeNgapId, ue.RanUeNgapId, ranIpAddr)
+	sendMsg, err = test.GetPDUSessionResourceSetupResponse(ue.AmfUeNgapId, ue.RanUeNgapId, testEnv.ranIpAddr)
 	assert.Nil(t, err)
 	_, err = conn.Write(sendMsg)
 	assert.Nil(t, err)
