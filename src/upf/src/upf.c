@@ -95,7 +95,7 @@ static void eventConsumer() {
         status = EventRecv(Self()->eventQ, &event);
         if (status != STATUS_OK) {
             if (status == STATUS_EAGAIN) {
-                usleep(1000);
+                usleep(eventq_timeout);
                 continue;
             } else {
                 UTLT_Assert(0, break, "Event receive fail");
