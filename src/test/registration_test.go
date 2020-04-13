@@ -135,31 +135,37 @@ func TestRegistration(t *testing.T) {
 	fetchEnv()
 
 	// RAN connect to AMF
+	fmt.Printf("TestRegistration: RAN %s:%d connect to AMF %s:%d\n", testEnv.ranIpAddr, testEnv.ranPort, testEnv.amfIpAddr, testEnv.amfPort)
 	conn, err := conntectToAmf(testEnv.amfIpAddr, testEnv.ranIpAddr, testEnv.amfPort, testEnv.ranPort)
 	assert.Nil(t, err)
 
 	// RAN connect to UPF
+	fmt.Printf("TestRegistration: ENB %s:%d connect to UPF %s:%d\n", testEnv.enbIpAddr, testEnv.gnbPort, testEnv.upfIpAddr, testEnv.upfPort)
 	upfConn, err := connectToUpf(testEnv.enbIpAddr, testEnv.upfIpAddr, testEnv.gnbPort, testEnv.upfPort)
 	assert.Nil(t, err)
 
 	// send NGSetupRequest Msg
+	fmt.Printf("TestRegistration: send NGSetupRequest Msg\n")
 	sendMsg, err = test.GetNGSetupRequest([]byte("\x00\x01\x02"), 24, "free5gc")
 	assert.Nil(t, err)
 	_, err = conn.Write(sendMsg)
 	assert.Nil(t, err)
 
 	// receive NGSetupResponse Msg
+	fmt.Printf("TestRegistration: receive NGSetupResponse Msg\n")
 	n, err = conn.Read(recvMsg)
 	assert.Nil(t, err)
 	_, err = ngap.Decoder(recvMsg[:n])
 	assert.Nil(t, err)
 
 	// New UE
+	fmt.Printf("TestRegistration: New UE\n")
 	ue := test.NewRanUeContext("imsi-2089300007487", 1, test.ALG_CIPHERING_128_NEA2, test.ALG_INTEGRITY_128_NIA2)
 	// ue := test.NewRanUeContext("imsi-2089300007487", 1, test.ALG_CIPHERING_128_NEA0, test.ALG_INTEGRITY_128_NIA0)
 	ue.AmfUeNgapId = 1
 	ue.AuthenticationSubs = getAuthSubscription()
 	// insert UE data to MongoDB
+	fmt.Printf("TestRegistration: insert UE data to MongoDB\n")
 
 	servingPlmnId := "20893"
 	test.InsertAuthSubscriptionToMongoDB(ue.Supi, ue.AuthenticationSubs)
@@ -179,6 +185,7 @@ func TestRegistration(t *testing.T) {
 	}
 
 	// send InitialUeMessage(Registration Request)(imsi-2089300007487)
+	fmt.Printf("TestRegistration: send InitialUeMessage(Registration Request)\n")
 	mobileIdentity5GS := nasType.MobileIdentity5GS{
 		Len:    12, // suci
 		Buffer: []uint8{0x01, 0x02, 0xf8, 0x39, 0xf0, 0x00, 0x00, 0x00, 0x00, 0x00, 0x47, 0x78},
@@ -190,18 +197,21 @@ func TestRegistration(t *testing.T) {
 	assert.Nil(t, err)
 
 	// receive NAS Authentication Request Msg
+	fmt.Printf("TestRegistration: receive NAS Authentication Request Msg\n")
 	n, err = conn.Read(recvMsg)
 	assert.Nil(t, err)
 	ngapMsg, err := ngap.Decoder(recvMsg[:n])
 	assert.Nil(t, err)
 
 	// Calculate for RES*
+	fmt.Printf("TestRegistration: Calculate for RES*\n")
 	nasPdu := test.GetNasPdu(ngapMsg.InitiatingMessage.Value.DownlinkNASTransport)
 	assert.NotNil(t, nasPdu)
 	rand := nasPdu.AuthenticationRequest.GetRANDValue()
 	resStat := ue.DeriveRESstarAndSetKey(ue.AuthenticationSubs, rand[:], "5G:mnc093.mcc208.3gppnetwork.org")
 
 	// send NAS Authentication Response
+	fmt.Printf("TestRegistration: send NAS Authentication Response\n")
 	pdu = nasTestpacket.GetAuthenticationResponse(resStat, "")
 	sendMsg, err = test.GetUplinkNASTransport(ue.AmfUeNgapId, ue.RanUeNgapId, pdu)
 	assert.Nil(t, err)
@@ -209,12 +219,14 @@ func TestRegistration(t *testing.T) {
 	assert.Nil(t, err)
 
 	// receive NAS Security Mode Command Msg
+	fmt.Printf("TestRegistration: receive NAS Security Mode Command Msg\n")
 	n, err = conn.Read(recvMsg)
 	assert.Nil(t, err)
 	_, err = ngap.Decoder(recvMsg[:n])
 	assert.Nil(t, err)
 
 	// send NAS Security Mode Complete Msg
+	fmt.Printf("TestRegistration: send NAS Security Mode Complete Msg\n")
 	pdu = nasTestpacket.GetSecurityModeComplete()
 	pdu, err = test.EncodeNasPduWithSecurity(ue, pdu)
 	assert.Nil(t, err)
@@ -224,18 +236,21 @@ func TestRegistration(t *testing.T) {
 	assert.Nil(t, err)
 
 	// receive ngap Initial Context Setup Request Msg
+	fmt.Printf("TestRegistration: receive ngap Initial Context Setup Request Msg\n")
 	n, err = conn.Read(recvMsg)
 	assert.Nil(t, err)
 	_, err = ngap.Decoder(recvMsg[:n])
 	assert.Nil(t, err)
 
 	// send ngap Initial Context Setup Response Msg
+	fmt.Printf("TestRegistration: send ngap Initial Context Setup Response Msg\n")
 	sendMsg, err = test.GetInitialContextSetupResponse(ue.AmfUeNgapId, ue.RanUeNgapId)
 	assert.Nil(t, err)
 	_, err = conn.Write(sendMsg)
 	assert.Nil(t, err)
 
 	// send NAS Registration Complete Msg
+	fmt.Printf("TestRegistration: send NAS Registration Complete Msg\n")
 	pdu = nasTestpacket.GetRegistrationComplete(nil)
 	pdu, err = test.EncodeNasPduWithSecurity(ue, pdu)
 	assert.Nil(t, err)
@@ -246,6 +261,7 @@ func TestRegistration(t *testing.T) {
 
 	time.Sleep(100 * time.Millisecond)
 	// send GetPduSessionEstablishmentRequest Msg
+	fmt.Printf("TestRegistration: send GetPduSessionEstablishmentRequest Msg\n")
 
 	sNssai := models.Snssai{
 		Sst: 1,
@@ -260,12 +276,14 @@ func TestRegistration(t *testing.T) {
 	assert.Nil(t, err)
 
 	// recieve 12. NGAP-PDU Session Resource Setup Request(DL nas transport((NAS msg-PDU session setup Accept)))
+	fmt.Printf("TestRegistration: recieve 12. NGAP-PDU Session Resource Setup Request\n")
 	n, err = conn.Read(recvMsg)
 	assert.Nil(t, err)
 	_, err = ngap.Decoder(recvMsg[:n])
 	assert.Nil(t, err)
 
 	// send 14. NGAP-PDU Session Resource Setup Response
+	fmt.Printf("TestRegistration: send 14. NGAP-PDU Session Resource Setup Response\n")
 	sendMsg, err = test.GetPDUSessionResourceSetupResponse(ue.AmfUeNgapId, ue.RanUeNgapId, testEnv.ranIpAddr)
 	assert.Nil(t, err)
 	_, err = conn.Write(sendMsg)
@@ -275,6 +293,7 @@ func TestRegistration(t *testing.T) {
 	time.Sleep(1 * time.Second)
 
 	// Send the dummy packet
+	fmt.Printf("TestRegistration: Send the dummy packet\n")
 	// ping IP(tunnel IP) from 60.60.0.2(127.0.0.1) to 60.60.0.20(127.0.0.8)
 	gtpHdr, err := hex.DecodeString("32ff00340000000100000000")
 	assert.Nil(t, err)
@@ -314,11 +333,13 @@ func TestRegistration(t *testing.T) {
 	assert.Nil(t, err)
 
 	// delete test data
+	fmt.Printf("TestRegistration: delete test data\n")
 	test.DelAuthSubscriptionToMongoDB(ue.Supi)
 	test.DelAccessAndMobilitySubscriptionDataFromMongoDB(ue.Supi, servingPlmnId)
 	test.DelSmfSelectionSubscriptionDataFromMongoDB(ue.Supi, servingPlmnId)
 
 	// close Connection
+	fmt.Printf("TestRegistration: close Connection\n")
 	conn.Close()
 }
 
@@ -330,6 +351,7 @@ func TestDeregistration(t *testing.T) {
 	fetchEnv()
 
 	// RAN connect to AMF
+	fmt.Printf("TestDeregistration: RAN %s:%d connect to AMF %s:%d\n", testEnv.ranIpAddr, testEnv.ranPort, testEnv.amfIpAddr, testEnv.amfPort)
 	conn, err := conntectToAmf(testEnv.amfIpAddr, testEnv.ranIpAddr, testEnv.amfPort, testEnv.ranPort)
 	assert.Nil(t, err)
 
@@ -482,6 +504,7 @@ func TestServiceRequest(t *testing.T) {
 	fetchEnv()
 
 	// RAN connect to AMF
+	fmt.Printf("TestServiceRequest: RAN %s:%d connect to AMF %s:%d\n", testEnv.ranIpAddr, testEnv.ranPort, testEnv.amfIpAddr, testEnv.amfPort)
 	conn, err := conntectToAmf(testEnv.amfIpAddr, testEnv.ranIpAddr, testEnv.amfPort, testEnv.ranPort)
 	assert.Nil(t, err)
 
@@ -675,6 +698,7 @@ func TestPDUSessionReleaseRequest(t *testing.T) {
 	fetchEnv()
 
 	// RAN connect to AMF
+	fmt.Printf("TestPDUSessionReleaseRequest: RAN %s:%d connect to AMF %s:%d\n", testEnv.ranIpAddr, testEnv.ranPort, testEnv.amfIpAddr, testEnv.amfPort)
 	conn, err := conntectToAmf(testEnv.amfIpAddr, testEnv.ranIpAddr, testEnv.amfPort, testEnv.ranPort)
 	assert.Nil(t, err)
 
@@ -854,6 +878,7 @@ func TestXnHandover(t *testing.T) {
 	fetchEnv()
 
 	// RAN connect to AMF
+	fmt.Printf("TestXnHandover: RAN %s:%d connect to AMF %s:%d\n", testEnv.ranIpAddr, testEnv.ranPort, testEnv.amfIpAddr, testEnv.amfPort)
 	conn, err := conntectToAmf(testEnv.amfIpAddr, testEnv.ranIpAddr, testEnv.amfPort, testEnv.ranPort)
 	assert.Nil(t, err)
 
@@ -871,7 +896,7 @@ func TestXnHandover(t *testing.T) {
 
 	time.Sleep(10 * time.Millisecond)
 
-	conn2, err1 := conntectToAmf("127.0.0.1", "127.0.0.1", 38412, 9488)
+	conn2, err1 := conntectToAmf(testEnv.amfIpAddr, testEnv.ranIpAddr, testEnv.amfPort, (testEnv.ranPort + 1))
 	assert.Nil(t, err1)
 
 	// send Second NGSetupRequest Msg
@@ -1034,6 +1059,7 @@ func TestPaging(t *testing.T) {
 	fetchEnv()
 
 	// RAN connect to AMFcd
+	fmt.Printf("TestPaging: RAN %s:%d connect to AMF %s:%d\n", testEnv.ranIpAddr, testEnv.ranPort, testEnv.amfIpAddr, testEnv.amfPort)
 	conn, err := conntectToAmf(testEnv.amfIpAddr, testEnv.ranIpAddr, testEnv.amfPort, testEnv.ranPort)
 	assert.Nil(t, err)
 
@@ -1249,6 +1275,7 @@ func TestN2Handover(t *testing.T) {
 	fetchEnv()
 
 	// RAN1 connect to AMF
+	fmt.Printf("TestN2Handover: RAN %s:%d connect to AMF %s:%d\n", testEnv.ranIpAddr, testEnv.ranPort, testEnv.amfIpAddr, testEnv.amfPort)
 	conn, err := conntectToAmf(testEnv.amfIpAddr, testEnv.ranIpAddr, testEnv.amfPort, testEnv.ranPort)
 	assert.Nil(t, err)
 
