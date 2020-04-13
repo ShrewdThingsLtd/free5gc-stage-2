@@ -11,6 +11,10 @@
 #include "upf_context.h"
 #include "n4/n4_dispatcher.h"
 
+static const uint64_t upf_eventq_timeout_min = 1;
+static const uint64_t upf_eventq_timeout_max = 1000000;
+static const uint64_t upf_eventq_timeout_default = 1000;
+
 static Status parseArgs(int argc, char *argv[]);
 static Status checkPermission();
 static void eventConsumer();
@@ -78,10 +82,20 @@ static void eventConsumer() {
     Status status;
     Event event;
 
+    const char *eventq_timeout_str = getenv("UPF_EVENTQ_TIMEOUT");
+    const uint64_t eventq_timeout_raw = (eventq_timeout_str) ? 
+        strtoull(eventq_timeout_str, NULL, 10) : 
+        upf_eventq_timeout_default;
+    const uint64_t eventq_timeout = 
+        ((eventq_timeout_raw >= upf_eventq_timeout_min) && (eventq_timeout_raw <= upf_eventq_timeout_max)) ? 
+        eventq_timeout_raw : 
+        upf_eventq_timeout_default;
+
     while (1) {
         status = EventRecv(Self()->eventQ, &event);
         if (status != STATUS_OK) {
             if (status == STATUS_EAGAIN) {
+                usleep(1000);
                 continue;
             } else {
                 UTLT_Assert(0, break, "Event receive fail");
